@@ -3,152 +3,183 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RO 攻速頻率計算機 v2.0</title>
+    <title>RO 攻速與獵鷹計算機 v2.7</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background-color: #f0f2f5; display: flex; justify-content: center; padding: 20px; }
-        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 450px; }
-        h2 { color: #1a73e8; text-align: center; margin-bottom: 20px; }
-        .input-group { margin-bottom: 12px; }
-        label { display: block; margin-bottom: 4px; font-weight: bold; font-size: 14px; }
-        input[type="text"], select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
-        
-        .buff-section { background: #f8f9fa; padding: 15px; border-radius: 8px; margin-top: 15px; border: 1px solid #eee; }
-        .buff-title { font-weight: bold; margin-bottom: 10px; display: block; color: #5f6368; }
-        .buff-item { display: flex; align-items: center; margin-bottom: 8px; font-size: 14px; cursor: pointer; }
-        .buff-item input { margin-right: 10px; width: 18px; height: 18px; }
-
-        .result-box { margin-top: 20px; padding: 20px; background: #e8f0fe; border-radius: 10px; text-align: center; }
-        .result-val { font-size: 32px; font-weight: bold; color: #1967d2; }
-        .footer { font-size: 12px; color: #70757a; text-align: center; margin-top: 20px; line-height: 1.5; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f0f2f5; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; padding: 20px; margin: 0; }
+        .container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; background: white; padding: 30px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 950px; }
+        h2 { grid-column: 1 / -1; color: #1a73e8; text-align: center; margin-top: 0; margin-bottom: 20px; }
+        .input-section { display: flex; flex-direction: column; gap: 15px; }
+        label { display: block; margin-bottom: 6px; font-weight: bold; font-size: 14px; color: #3c4043; }
+        input[type="text"], select { width: 100%; padding: 10px; border: 1px solid #dadce0; border-radius: 8px; box-sizing: border-box; font-size: 15px; }
+        .buff-section { background: #f8f9fa; padding: 15px; border-radius: 10px; border: 1px solid #e8eaed; }
+        .buff-title { font-weight: bold; margin-bottom: 12px; display: block; color: #5f6368; border-left: 4px solid #1a73e8; padding-left: 8px; margin-top: 10px; }
+        .buff-grid { display: grid; grid-template-columns: 1fr; gap: 8px; }
+        .buff-item { display: flex; align-items: center; font-size: 13px; cursor: pointer; color: #3c4043; }
+        .buff-item input { margin-right: 10px; width: 16px; height: 16px; }
+        .display-section { display: flex; flex-direction: column; gap: 15px; }
+        .result-box { padding: 25px; border-radius: 12px; text-align: center; border: 1px solid #d2e3fc; }
+        .blue-box { background: #e8f0fe; }
+        .red-box { background: #fdf2f2; border-color: #f9d7d7; }
+        .result-val { font-size: 42px; font-weight: bold; color: #1967d2; line-height: 1; }
+        .stunt-embed { margin-top: 15px; padding-top: 15px; border-top: 1px dashed #f9d7d7; text-align: left; }
+        .stunt-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+        .analysis-box { padding: 20px; background: #fff4e5; border-radius: 12px; border: 1px solid #ffe5b4; }
+        .analysis-item { margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #fae1c3; }
+        .analysis-item:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+        .footer { grid-column: 1 / -1; font-size: 12px; color: #70757a; text-align: center; margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee; }
+        @media (max-width: 768px) { .container { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
 
-<div class="card">
-    <h2>RO 攻速計算機 v2.0</h2>
+<div class="container">
+    <h2>RO 攻速與獵鷹計算機 v2.7</h2>
     
-    <div class="input-group">
+    <div class="input-section">
         <label>狀態模式</label>
-        <select id="mode" onchange="calculate()">
-            <option value="weapon">拿武器 (預設)</option>
-            <option value="unarmed">空手狀態</option>
-        </select>
+        <select id="mode" onchange="calculate()"><option value="weapon">拿武器 (預設)</option><option value="unarmed">空手狀態</option></select>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+            <div><label>AGI</label><input type="text" id="agi" value="1" oninput="calculate()"></div>
+            <div><label>DEX</label><input type="text" id="dex" value="1" oninput="calculate()"></div>
+            <div><label>LUK</label><input type="text" id="luk" value="1" oninput="calculate()"></div>
+        </div>
+
+        <div class="input-group">
+            <label>裝備加成 (%)</label>
+            <input type="text" id="bonus" value="0" oninput="calculate()">
+        </div>
+
+        <div class="buff-section">
+            <span class="buff-title">料理</span>
+            <div class="buff-grid">
+                <label class="buff-item"><input type="checkbox" class="buff-cb" data-agi="5" data-aspd="2" onchange="calculate()"> 敏捷料理 (A+5, 攻速+2%)</label>
+                <label class="buff-item"><input type="checkbox" class="buff-cb" data-dex="5" onchange="calculate()"> 靈巧料理 (D+5)</label>
+                <label class="buff-item"><input type="checkbox" class="buff-cb" data-luk="5" onchange="calculate()"> 幸運料理 (L+5)</label>
+                <label class="buff-item"><input type="checkbox" class="buff-cb" data-aspd="5" onchange="calculate()"> 覺醒藥水 (攻速+5%)</label>
+                <label class="buff-item"><input type="checkbox" class="buff-cb" data-aspd="10" onchange="calculate()"> 集中藥水 (攻速+10%)</label>
+            </div>
+            <span class="buff-title">Buff</span>
+            <div class="buff-grid">
+                <label class="buff-item"><input type="checkbox" class="buff-cb" data-agi="30" data-dex="30" data-luk="30" data-aspd="10" onchange="calculate()"> 補師 Buff (A+30, D+30, L+30, 攻速+10%)</label>
+                <label class="buff-item"><input type="checkbox" class="buff-cb" data-aspd="25" onchange="calculate()"> 獵鷹突擊 lv5 (攻速+25%)</label>
+                <label class="buff-item"><input type="checkbox" class="buff-cb" data-agi="10" data-dex="10" data-luk="20" onchange="calculate()"> 心神凝聚 lv10 (A+10, D+10, L+20)</label>
+                <label class="buff-item"><input type="checkbox" class="buff-cb" data-agi="5" data-dex="5" data-luk="5" onchange="calculate()"> 狙殺瞄準 lv10 (A+5, D+5, L+5)</label>
+            </div>
+        </div>
     </div>
 
-    <div class="input-group">
-        <label>AGI (可輸入 30+25)</label>
-        <input type="text" id="agi" value="1" oninput="calculate()">
-    </div>
+    <div class="display-section">
+        <div class="result-box blue-box">
+            <div style="font-size: 14px; color: #5f6368; margin-bottom: 5px;">當前普攻頻率</div>
+            <div class="result-val" id="res_f">0.00</div>
+            <div style="font-size: 13px; margin-top: 10px;" id="detail_info"></div>
+        </div>
 
-    <div class="input-group">
-        <label>DEX (可輸入 10+5)</label>
-        <input type="text" id="dex" value="1" oninput="calculate()">
-    </div>
+        <div class="result-box red-box">
+            <div style="font-size: 14px; color: #5f6368; margin-bottom: 5px;">獵鷹出擊總機率 (上限 50%)</div>
+            <div class="result-val" id="res_bird" style="color: #d93025;">0.0%</div>
+            <div style="font-size: 13px; margin-top: 8px;" id="detail_bird"></div>
+            <div class="stunt-embed">
+                <label class="buff-item" style="font-weight: bold; color: #6a1b9a;">
+                    <input type="checkbox" id="keen_falcon_cb" onchange="calculate()"> 啟用特技：敏銳獵鷹
+                </label>
+                <div class="stunt-controls">
+                    <select id="stunt_color" onchange="calculate()">
+                        <option value="purple">紫色品質</option>
+                        <option value="orange">橘色品質</option>
+                    </select>
+                    <select id="stunt_lv" onchange="calculate()">
+                        <option value="1">等級 1</option>
+                        <option value="2">等級 2</option>
+                        <option value="3">等級 3</option>
+                    </select>
+                </div>
+            </div>
+        </div>
 
-    <div class="input-group">
-        <label>裝備加成 (%)</label>
-        <input type="text" id="bonus" value="0" oninput="calculate()">
-    </div>
-
-    <div class="buff-section">
-        <span class="buff-title">常用 Buff 補給</span>
-        <label class="buff-item">
-            <input type="checkbox" class="buff-cb" data-agi="5" data-aspd="2" onchange="calculate()">
-            敏捷料理 (AGI+5, 攻速+2%)
-        </label>
-                <label class="buff-item">
-            <input type="checkbox" class="buff-cb" data-agi="0" data-dex="5" data-aspd="0" onchange="calculate()">
-            靈巧料理 (DEX+5)
-        </label>
-        <label class="buff-item">
-            <input type="checkbox" class="buff-cb" data-agi="30" data-dex="30" data-aspd="10" onchange="calculate()">
-            補師buff (AGI+30,DEX+30,攻速+10%)
-        </label>
-        <label class="buff-item">
-            <input type="checkbox" class="buff-cb" data-agi="0" data-aspd="10" onchange="calculate()">
-            覺醒藥水 (攻速+10%)
-        </label>
-                <label class="buff-item">
-            <input type="checkbox" class="buff-cb" data-agi="0" data-aspd="5" onchange="calculate()">
-            集中藥水 (攻速+5%)
-        </label>
-    </div>
-
-    <div class="result-box">
-        <div style="font-size: 14px; color: #5f6368;">預測普攻頻率</div>
-        <div class="result-val" id="res_f">0.00</div>
-        <div style="font-size: 12px; margin-top: 5px;" id="detail_info"></div>
+        <div class="analysis-box">
+            <div class="analysis-item" id="agi_analysis"></div>
+            <div class="analysis-item" id="luk_analysis"></div>
+        </div>
     </div>
 
     <div class="footer">
-        研發者：我要叫什麼名字<br>
+        ID : 我要叫什麼名字<br>
         基於 0.0000 殘差高精度擬合模型
     </div>
 </div>
 
 <script>
-// 解析輸入公式 (例如 "30+25")
 function parseExpression(str) {
     try {
-        // 過濾掉非法字元，只允許數字和運算符號
         const cleanStr = str.replace(/[^-+*/().0-9]/g, '');
-        // 使用 Function 代替 eval 較為安全
         return new Function('return ' + (cleanStr || '0'))();
-    } catch (e) {
-        return 0;
-    }
+    } catch (e) { return 0; }
 }
 
 function calculate() {
     const mode = document.getElementById('mode').value;
-    
-    // 解析基礎輸入
-    let baseAgi = parseExpression(document.getElementById('agi').value);
-    let baseDex = parseExpression(document.getElementById('dex').value);
-    let baseBonus = parseExpression(document.getElementById('bonus').value);
+    const baseAgi = parseExpression(document.getElementById('agi').value);
+    const baseDex = parseExpression(document.getElementById('dex').value);
+    const baseLuk = parseExpression(document.getElementById('luk').value);
+    const baseBonus = parseExpression(document.getElementById('bonus').value);
 
-    // 處理 Buff 累加
-    let extraAgi = 0;
-    let extraDex = 0;
-    let extraBonus = 0;
-    const checkboxes = document.querySelectorAll('.buff-cb');
-    checkboxes.forEach(cb => {
+    let extraAgi = 0, extraDex = 0, extraLuk = 0, extraBonus = 0;
+    document.querySelectorAll('.buff-cb').forEach(cb => {
         if (cb.checked) {
-            extraAgi += parseFloat(cb.getAttribute('data-agi'));
+            extraAgi += parseFloat(cb.getAttribute('data-agi') || 0);
             extraDex += parseFloat(cb.getAttribute('data-dex') || 0);
-            extraBonus += parseFloat(cb.getAttribute('data-aspd'));
+            extraLuk += parseFloat(cb.getAttribute('data-luk') || 0);
+            extraBonus += parseFloat(cb.getAttribute('data-aspd') || 0);
         }
     });
 
+    // 核心修正：將手動輸入的 baseBonus 加回去
     const totalAgi = baseAgi + extraAgi;
     const totalDex = baseDex + extraDex;
+    const totalLuk = baseLuk + extraLuk;
     const totalBonus = (baseBonus + extraBonus) / 100;
 
-    // 模型參數 [cite: 2025-09-11]
-    let B, D;
-    if (mode === 'unarmed') {
-        B = 1.1904; D = 63.0;
-    } else {
-        B = 1.1109; D = 67.5;
-    }
-
-    // 計算頻率
-    const S = totalAgi + (baseDex / 4);
+    let B = (mode === 'unarmed') ? 1.1904 : 1.1109;
+    let D = (mode === 'unarmed') ? 63.0 : 67.5;
+    const S = totalAgi + (totalDex / 4);
     const f_base = B + (S / D);
     const raw_f = f_base / (1 - totalBonus);
-
-    // 四捨五入與捨去處理
     const final_f = Math.floor(Math.round(raw_f * 1000) / 10) / 100;
 
-    // 更新顯示
-    document.getElementById('res_f').innerText = final_f.toFixed(2);
-    document.getElementById('detail_info').innerText = 
-        `當前總 AGI: ${totalAgi} | 當前總 DEX: ${totalDex}| 總加成: ${(totalBonus*100).toFixed(0)}%`;}
+    const baseBird = 5;
+    let stuntBonus = 0;
+    if (document.getElementById('keen_falcon_cb').checked) {
+        const matrix = { purple: { "1": 14, "2": 17, "3": 20 }, orange: { "1": 22, "2": 26, "3": 30 } };
+        stuntBonus = matrix[document.getElementById('stunt_color').value][document.getElementById('stunt_lv').value];
+    }
+    const totalBird = Math.min(baseBird + (totalLuk / 3) + stuntBonus, 50);
 
-// 初始化
+    const requiredAgi = D * (7.0 * (1 - totalBonus) - B) - (totalDex / 4);
+    const agiDiff = Math.ceil(requiredAgi - totalAgi);
+    document.getElementById('agi_analysis').innerHTML = agiDiff > 0 ? 
+        `⚡ <b>攻速分析：</b>距 7.0 頂速還缺 <span style="color:#d93025; font-weight:bold;">${agiDiff}</span> 點 AGI` : 
+        `⚡ <b>攻速分析：</b><span style="color:#1a73e8; font-weight:bold;">已達頂速！</span>溢出 ${Math.abs(agiDiff)} 點 AGI`;
+
+    let lukRequired = (50 - baseBird - stuntBonus) * 3;
+    if (lukRequired < 0) lukRequired = 0;
+    const lukDiff = Math.ceil(lukRequired - totalLuk);
+    const lukAnalysisEl = document.getElementById('luk_analysis');
+    
+    if (lukDiff <= 0) {
+        lukAnalysisEl.innerHTML = `🦅 <b>獵鷹分析：</b><span style="color:#1a73e8; font-weight:bold;">出擊率已達 50% 上限！</span>` +
+            (Math.abs(lukDiff) > 0 ? ` (溢出 <span style="color:#1a73e8; font-weight:bold;">${Math.abs(lukDiff)}</span> 點 LUK)` : "");
+    } else {
+        lukAnalysisEl.innerHTML = `🦅 <b>獵鷹分析：</b>距 50% 出擊率還缺 <span style="color:#d93025; font-weight:bold;">${lukDiff}</span> 點 LUK`;
+    }
+
+    document.getElementById('res_f').innerText = final_f.toFixed(2);
+    document.getElementById('detail_info').innerHTML = `總 A: <b>${totalAgi}</b> | 總 D: <b>${totalDex}</b> | 總加成: <b>${(totalBonus*100).toFixed(0)}%</b>`;
+    document.getElementById('res_bird').innerText = totalBird.toFixed(1) + '%';
+    document.getElementById('detail_bird').innerHTML = `LUK 加成: ${(totalLuk/3).toFixed(1)}% | 特技加成: +${stuntBonus}%`;
+}
 calculate();
 </script>
-
 </body>
 </html>
-
