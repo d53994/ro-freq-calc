@@ -56,12 +56,16 @@
         <p><b>1. 屬性輸入：</b><br>支援如 <span class="math-note">99+45</span> 格式。優化器僅調整「+」左側基礎值。</p>
         <p><b>2. 攻速擬合：</b><br>基於 0.0000 殘差模型。頂速上限鎖定於 <span class="math-note">7.0</span>。</p>
         <p><b>3. 獵鷹機制：</b><br>LUK 加成上限為 45% (135 LUK)。特技加成獨立疊加，最高可達 80%。</p>
-        <p><b>4. 優化器原理：</b><br>自動回收溢出點數，並依<b>階梯式成本</b>重分配至 DEX，實現效率最大化。</p>
+        <p><b>4. 可用素質點數總量：</b><br>可以重置素質加點，查看並輸入剩餘點數最大值，按下執行無溢出能力值優化，可實現效率最大化。(優先幸運135>攻擊頻率秒7>其餘點DEX)</p>
     </div>
 
     <div class="input-section">
         <label>狀態模式</label>
         <select id="mode" onchange="calculate()"><option value="weapon">拿武器 (預設)</option><option value="unarmed">空手狀態</option></select>
+        <div style="background: #eef7ee; padding: 10px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #cce8cc;">
+        <label style="color: #2e7d32;">💎 可用素質點數總量 (Status Points Pool)</label>
+            <input type="number" id="status_pool" value="2000" oninput="calculate()" style="width: 100%; padding: 8px; border: 1px solid #7dc47d; border-radius: 6px;">
+        </div>
         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
             <div><label>AGI</label><input type="text" id="agi" value="1" oninput="calculate()"></div>
             <div><label>DEX</label><input type="text" id="dex" value="1" oninput="calculate()"></div>
@@ -84,7 +88,7 @@
         <details>
             <summary>🏹 職業技能 Buff</summary>
             <div class="buff-grid">
-                <label class="buff-item"><input type="checkbox" class="buff-cb" data-agi="30" data-dex="30" data-luk="30" data-aspd="10" onchange="calculate()"> 補師 Buff (A/D/L+30, 10%)</label>
+                <label class="buff-item"><input type="checkbox" class="buff-cb" data-agi="7" data-dex="30" data-luk="30" data-aspd="10" onchange="calculate()"> 補師 Buff (A+7, D/L+30, 10%)</label>
                 <label class="buff-item"><input type="checkbox" class="buff-cb" data-aspd="25" onchange="calculate()"> 獵鷹突擊 (25%)</label>
                 <label class="buff-item"><input type="checkbox" class="buff-cb" data-agi="10" data-dex="10" data-luk="20" onchange="calculate()"> 心神凝聚 (A/D+10, L+20)</label>
                 <label class="buff-item"><input type="checkbox" class="buff-cb" data-agi="5" data-dex="5" data-luk="5" onchange="calculate()"> 狙殺瞄準 (A/D/L+5)</label>
@@ -176,32 +180,103 @@ function calculate() {
     document.getElementById('res_f').innerText = finalF.toFixed(2);
     document.getElementById('res_bird').innerText = totalBird.toFixed(1) + '%';
     document.getElementById('detail_info').innerHTML = `總 A: <b>${totA}</b> | 總 D: <b>${totD}</b> | 加成: <b>${(totB*100).toFixed(0)}%</b>`;
-    document.getElementById('detail_bird').innerHTML = `LUK 加成: ${lukProc.toFixed(1)}% | 特技: +${stunt}%`;
+    document.getElementById('detail_bird').innerHTML = `總 L: <b>${totL}</b> | LUK 加成: ${lukProc.toFixed(1)}% | 特技: +${stunt}%`;
 }
 
 function optimizePoints() {
-    let a = parseVal(document.getElementById('agi').value);
-    let d = parseVal(document.getElementById('dex').value);
-    let l = parseVal(document.getElementById('luk').value);
+    // 1. 初始化環境變數
+    const mode = document.getElementById('mode').value;
     const bonusVal = parseFloat(document.getElementById('bonus').value) || 0;
+    const pool_limit = parseInt(document.getElementById('status_pool').value) || 0;
+    
     let exA = 0, exD = 0, exL = 0, exB = 0;
     document.querySelectorAll('.buff-cb').forEach(cb => {
-        if (cb.checked) { exA += parseFloat(cb.getAttribute('data-agi')||0); exD += parseFloat(cb.getAttribute('data-dex')||0); exL += parseFloat(cb.getAttribute('data-luk')||0); exB += parseFloat(cb.getAttribute('data-aspd')||0); }
+        if (cb.checked) {
+            exA += parseFloat(cb.getAttribute('data-agi') || 0);
+            exD += parseFloat(cb.getAttribute('data-dex') || 0);
+            exL += parseFloat(cb.getAttribute('data-luk') || 0);
+            exB += parseFloat(cb.getAttribute('data-aspd') || 0);
+        }
     });
 
-    let pool = 0;
-    for(let i=0; i<10; i++) {
-        let curB = (bonusVal + exB) / 100;
-        let tA = Math.ceil(67.5 * (7.0 * (1 - curB) - 1.1109) - ((d.b + d.s + exD) / 4));
-        let diffA = (a.b + a.s + exA) - tA;
-        if(diffA > 0 && a.b > 1) { let n = Math.min(diffA, a.b - 1); for(let j=0; j<n; j++) { pool += getCost(a.b); a.b--; } }
-        let diffL = (l.b + l.s + exL) - 135;
-        if(diffL > 0 && l.b > 1) { let n = Math.min(diffL, l.b - 1); for(let j=0; j<n; j++) { pool += getCost(l.b); l.b--; } }
-        while(pool >= getCost(d.b + 1) && d.b < 99) { d.b++; pool -= getCost(d.b); }
+    // 2. 核心計算閉包：給予基礎 A/D/L，回傳當前總頻率與總 LUK
+    const getSnapshot = (baseA, baseD, baseL) => {
+        const tA = baseA + parseVal(document.getElementById('agi').value).s + exA;
+        const tD = baseD + parseVal(document.getElementById('dex').value).s + exD;
+        const tL = baseL + parseVal(document.getElementById('luk').value).s + exL;
+        const tB = (bonusVal + exB) / 100;
+        let B = (mode === 'unarmed') ? 1.1904 : 1.1109;
+        const f = (B + (tA + tD / 4) / 67.5) / (1 - tB);
+        return { 
+            freq: Math.floor(Math.round(f * 1000) / 10) / 100, 
+            luk: tL 
+        };
+    };
+
+    // 3. 開始優化流程：重設基礎點數為 1
+    let bA = 1, bD = 1, bL = 1;
+    let currentPool = pool_limit;
+
+    // A. 優先湊滿 LUK 135 (總值)
+    while (getSnapshot(bA, bD, bL).luk < 135 && bL < 99) {
+        let cost = getCost(bL + 1);
+        if (currentPool >= cost) {
+            bL++;
+            currentPool -= cost;
+        } else break;
     }
-    document.getElementById('agi').value = `${a.b}+${a.s}`;
-    document.getElementById('dex').value = `${d.b}+${d.s}`;
-    document.getElementById('luk').value = `${l.b}+${l.s}`;
+
+    // B. 達成秒 7 攻速 (先用 AGI 填補，因為 AGI 對 ASPD 效率最高)
+    while (getSnapshot(bA, bD, bL).freq < 7.0 && bA < 99) {
+        let cost = getCost(bA + 1);
+        if (currentPool >= cost) {
+            bA++;
+            currentPool -= cost;
+        } else break;
+    }
+
+    // C. 剩餘點數全部投入 DEX
+    while (bD < 99) {
+        let cost = getCost(bD + 1);
+        if (currentPool >= cost) {
+            bD++;
+            currentPool -= cost;
+        } else break;
+    }
+
+    // D. 關鍵校正 (遞迴交換)：
+    // 因為增加 DEX 會微量提升攻速，可能導致 AGI 產生溢出點數。
+    // 我們嘗試將 AGI 點數回收並轉投 DEX，直到頻率剛好維持在 7.0。
+    for (let i = 0; i < 15; i++) {
+        // 嘗試回收 1 點 AGI
+        if (bA > 1) {
+            let refund = getCost(bA);
+            let tempA = bA - 1;
+            // 檢查回收後，DEX 是否能利用這些點數提升並維持秒 7
+            let testPool = currentPool + refund;
+            let tempD = bD;
+            while (testPool >= getCost(tempD + 1) && tempD < 99) {
+                testPool -= getCost(tempD + 1);
+                tempD++;
+            }
+            
+            // 判斷式：如果回收後頻率依然 >= 7.0，或者 tempD 有提升且頻率達標
+            if (getSnapshot(tempA, tempD, bL).freq >= 7.0) {
+                bA = tempA;
+                bD = tempD;
+                currentPool = testPool;
+            }
+        }
+    }
+
+    // 4. 更新結果到 UI
+    document.getElementById('agi').value = `${bA}+${parseVal(document.getElementById('agi').value).s}`;
+    document.getElementById('dex').value = `${bD}+${parseVal(document.getElementById('dex').value).s}`;
+    document.getElementById('luk').value = `${bL}+${parseVal(document.getElementById('luk').value).s}`;
+    
+    // 顯示剩餘點數資訊在分析區
+    document.getElementById('detail_info').innerHTML += ` | <span style="color:#2e7d32">剩餘點數: ${currentPool}</span>`;
+    
     calculate();
 }
 calculate();
