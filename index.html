@@ -3,131 +3,141 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RO 攻速獵鷹計算機 v3.0 - 全功能儀表板</title>
+    <title>RO 攻速獵鷹計算機 v3.5</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background-color: #f0f2f5; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; padding: 20px; margin: 0; }
-        .container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; background: white; padding: 30px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 950px; }
+        .container { display: grid; grid-template-columns: 280px 1.2fr 1fr; gap: 20px; background: white; padding: 30px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 1250px; }
         h2 { grid-column: 1 / -1; color: #1a73e8; text-align: center; margin-top: 0; margin-bottom: 20px; }
         
-        /* 佈局區塊 */
+        /* 左欄：使用說明 */
+        .instruction-section { background: #fdfbff; padding: 20px; border-radius: 12px; border: 1px solid #e0e0e0; font-size: 13px; line-height: 1.6; color: #444; }
+        .instruction-section h3 { color: #6a1b9a; margin-top: 0; font-size: 16px; border-bottom: 2px solid #f3e5f5; padding-bottom: 5px; }
+        .math-note { font-family: 'Courier New', monospace; background: #eee; padding: 2px 4px; border-radius: 4px; }
+
+        /* 中欄：輸入區與摺疊 Buff */
         .input-section { display: flex; flex-direction: column; gap: 15px; }
         label { display: block; margin-bottom: 6px; font-weight: bold; font-size: 14px; color: #3c4043; }
         input[type="text"], select { width: 100%; padding: 10px; border: 1px solid #dadce0; border-radius: 8px; box-sizing: border-box; font-size: 15px; }
-        
-        .buff-section { background: #f8f9fa; padding: 15px; border-radius: 10px; border: 1px solid #e8eaed; }
-        .buff-title { font-weight: bold; margin-bottom: 12px; display: block; color: #5f6368; border-left: 4px solid #1a73e8; padding-left: 8px; margin-top: 10px; }
-        .buff-grid { display: grid; grid-template-columns: 1fr; gap: 8px; }
-        .buff-item { display: flex; align-items: center; font-size: 13px; cursor: pointer; color: #3c4043; }
-        .buff-item input { margin-right: 10px; width: 16px; height: 16px; }
+        details { background: #f8f9fa; border-radius: 10px; border: 1px solid #e8eaed; margin-bottom: 10px; padding: 10px; }
+        summary { font-weight: bold; color: #1a73e8; cursor: pointer; outline: none; list-style: none; display: flex; align-items: center; }
+        summary::before { content: '▶'; margin-right: 10px; font-size: 10px; transition: 0.3s; }
+        details[open] summary::before { transform: rotate(90deg); }
+        .buff-grid { display: grid; grid-template-columns: 1fr; gap: 8px; padding-top: 10px; margin-top: 5px; border-top: 1px solid #eee; }
+        .buff-item { display: flex; align-items: center; font-size: 13px; cursor: pointer; }
+        .buff-item input { margin-right: 10px; }
 
+        /* 右欄：結果與分析 */
         .display-section { display: flex; flex-direction: column; gap: 15px; }
         .result-box { padding: 25px; border-radius: 12px; text-align: center; border: 1px solid #d2e3fc; }
         .blue-box { background: #e8f0fe; }
         .red-box { background: #fdf2f2; border-color: #f9d7d7; }
         .result-val { font-size: 42px; font-weight: bold; color: #1967d2; line-height: 1; }
-        
         .stunt-embed { margin-top: 15px; padding-top: 15px; border-top: 1px dashed #f9d7d7; text-align: left; }
         .stunt-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
-        
-        .analysis-box { padding: 20px; background: #fff4e5; border-radius: 12px; border: 1px solid #ffe5b4; }
-        .opt-btn { grid-column: 1 / -1; padding: 15px; background: #34a853; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 16px; transition: 0.3s; }
-        .opt-btn:hover { background: #2d8e47; box-shadow: 0 4px 12px rgba(52, 168, 83, 0.3); }
+        .analysis-box { padding: 20px; background: #fff4e5; border-radius: 12px; border: 1px solid #ffe5b4; font-size: 14px; }
+        .analysis-item { margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #fae1c3; }
+        .analysis-item:last-child { border-bottom: none; }
 
-        .footer { grid-column: 1 / -1; font-size: 12px; color: #70757a; text-align: center; margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee; }
-        @media (max-width: 768px) { .container { grid-template-columns: 1fr; } }
+        /* 優化按鈕 */
+        .opt-btn { grid-column: 1 / -1; padding: 18px; background: #34a853; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 18px; transition: 0.3s; margin-top: 10px; }
+        .opt-btn:hover { background: #2d8e47; box-shadow: 0 4px 15px rgba(52, 168, 83, 0.4); transform: translateY(-2px); }
+
+        .footer { grid-column: 1 / -1; font-size: 12px; color: #70757a; text-align: center; margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px; }
+        @media (max-width: 1024px) { .container { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>RO 攻速與獵鷹計算機 v3.2</h2>
+    <h2>RO 攻速與獵鷹計算機 v3.5</h2>
     
+    <div class="instruction-section">
+        <h3>📖 計算機使用說明</h3>
+        <p><b>1. 屬性輸入：</b><br>支援如 <span class="math-note">99+45</span> 格式。優化器僅調整「+」左側基礎值。</p>
+        <p><b>2. 攻速擬合：</b><br>基於 0.0000 殘差模型。頂速上限鎖定於 <span class="math-note">7.0</span>。</p>
+        <p><b>3. 獵鷹機制：</b><br>LUK 加成上限為 45% (135 LUK)。特技加成獨立疊加，最高可達 80%。</p>
+        <p><b>4. 優化器原理：</b><br>自動回收溢出點數，並依<b>階梯式成本</b>重分配至 DEX，實現效率最大化。</p>
+    </div>
+
     <div class="input-section">
         <label>狀態模式</label>
         <select id="mode" onchange="calculate()"><option value="weapon">拿武器 (預設)</option><option value="unarmed">空手狀態</option></select>
-
         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
             <div><label>AGI</label><input type="text" id="agi" value="1" oninput="calculate()"></div>
             <div><label>DEX</label><input type="text" id="dex" value="1" oninput="calculate()"></div>
             <div><label>LUK</label><input type="text" id="luk" value="1" oninput="calculate()"></div>
         </div>
+        <label>裝備加成 (%)</label>
+        <input type="text" id="bonus" value="0" oninput="calculate()">
 
-        <div class="input-group">
-            <label>其他攻擊速度加成 (%)</label>
-            <input type="text" id="bonus" value="0" oninput="calculate()">
-        </div>
-
-        <div class="buff-section">
-            <span class="buff-title">料理</span>
+        <details>
+            <summary>🍲 補給料理選單</summary>
             <div class="buff-grid">
-                <label class="buff-item"><input type="checkbox" class="buff-cb" data-agi="5" data-aspd="2" onchange="calculate()"> 敏捷料理 (A+5, 攻速+2%)</label>
+                <label class="buff-item"><input type="checkbox" class="buff-cb" data-agi="5" data-aspd="2" onchange="calculate()"> 敏捷料理 (A+5, 2%)</label>
                 <label class="buff-item"><input type="checkbox" class="buff-cb" data-dex="5" onchange="calculate()"> 靈巧料理 (D+5)</label>
                 <label class="buff-item"><input type="checkbox" class="buff-cb" data-luk="5" onchange="calculate()"> 幸運料理 (L+5)</label>
-                <label class="buff-item"><input type="checkbox" class="buff-cb" data-aspd="5" onchange="calculate()"> 覺醒藥水 (攻速+5%)</label>
-                <label class="buff-item"><input type="checkbox" class="buff-cb" data-aspd="10" onchange="calculate()"> 集中藥水 (攻速+10%)</label>
+                <label class="buff-item"><input type="checkbox" class="buff-cb" data-aspd="5" onchange="calculate()"> 覺醒藥水</label>
+                <label class="buff-item"><input type="checkbox" class="buff-cb" data-aspd="10" onchange="calculate()"> 集中藥水</label>
             </div>
-            <span class="buff-title">職業技能</span>
+        </details>
+
+        <details>
+            <summary>🏹 職業技能 Buff</summary>
             <div class="buff-grid">
                 <label class="buff-item"><input type="checkbox" class="buff-cb" data-agi="30" data-dex="30" data-luk="30" data-aspd="10" onchange="calculate()"> 補師 Buff (A/D/L+30, 10%)</label>
-                <label class="buff-item"><input type="checkbox" class="buff-cb" data-aspd="25" onchange="calculate()"> 獵鷹突擊 lv5 (25%)</label>
-                <label class="buff-item"><input type="checkbox" class="buff-cb" data-agi="10" data-dex="10" data-luk="20" onchange="calculate()"> 心神凝聚 lv10 (A/D+10, L+20)</label>
-                <label class="buff-item"><input type="checkbox" class="buff-cb" data-agi="5" data-dex="5" data-luk="5" onchange="calculate()"> 狙殺瞄準 lv10 (A/D/L+5)</label>
+                <label class="buff-item"><input type="checkbox" class="buff-cb" data-aspd="25" onchange="calculate()"> 獵鷹突擊 (25%)</label>
+                <label class="buff-item"><input type="checkbox" class="buff-cb" data-agi="10" data-dex="10" data-luk="20" onchange="calculate()"> 心神凝聚 (A/D+10, L+20)</label>
+                <label class="buff-item"><input type="checkbox" class="buff-cb" data-agi="10" data-dex="10" data-luk="20" onchange="calculate()"> 狙殺瞄準 (A/D/L+)</label>
             </div>
-        </div>
+        </details>
     </div>
 
     <div class="display-section">
         <div class="result-box blue-box">
-            <div style="font-size: 14px; color: #5f6368; margin-bottom: 5px;">當前普攻頻率</div>
+            <div style="font-size: 14px; color: #5f6368; margin-bottom: 5px;">當前攻擊頻率</div>
             <div class="result-val" id="res_f">0.00</div>
             <div style="font-size: 13px; margin-top: 10px;" id="detail_info"></div>
         </div>
 
         <div class="result-box red-box">
             <div style="font-size: 14px; color: #5f6368; margin-bottom: 5px;">獵鷹出擊總機率</div>
-            <div class="result-val" id="res_bird" style="color: #d93025;">0.0%</div>
+            <div class="result-val" id="res_bird">0.0%</div>
             <div style="font-size: 13px; margin-top: 8px;" id="detail_bird"></div>
-            
             <div class="stunt-embed">
                 <label class="buff-item" style="font-weight: bold; color: #6a1b9a;">
                     <input type="checkbox" id="keen_falcon_cb" onchange="calculate()"> 啟用特技：敏銳獵鷹
                 </label>
                 <div class="stunt-controls">
-                    <select id="stunt_color" onchange="calculate()"><option value="purple">紫色</option><option value="orange">橘色</option></select>
+                    <select id="stunt_color" onchange="calculate()"><option value="purple">紫色品質</option><option value="orange">橘色品質</option></select>
                     <select id="stunt_lv" onchange="calculate()"><option value="1">Lv 1</option><option value="2">Lv 2</option><option value="3">Lv 3</option></select>
                 </div>
             </div>
         </div>
 
         <div class="analysis-box">
-            <div id="agi_analysis" style="font-weight: bold; color: #d35400; font-size: 14px; margin-bottom: 8px;"></div>
-            <div id="luk_analysis" style="font-weight: bold; color: #d35400; font-size: 14px;"></div>
+            <div class="analysis-item" id="agi_analysis"></div>
+            <div class="analysis-item" id="luk_analysis"></div>
         </div>
     </div>
 
-    <button class="opt-btn" onclick="optimizePoints()">✨ 執行無溢出能力值優化 (點數轉 DEX)</button>
+    <button class="opt-btn" onclick="optimizePoints()">✨ 執行無溢出能力值優化 (點數重分配至 DEX)</button>
 
     <div class="footer">
-        ID : 我要叫什麼名字<br>
-        基於 0.0000 殘差高精度擬合模型
+        ID : 我要叫什麼名字 | 中央大學數學系 黃宣敏 研究開發
     </div>
 </div>
 
 <script>
-// 點數消耗階梯表
+// --- 核心運算系統 ---
 function getCost(v) { return Math.floor((Math.min(v, 99) - 2) / 10) + 2; }
-
-function parseExpression(str) {
-    const parts = str.toString().split('+');
-    return { base: parseInt(parts[0]) || 1, bonus: parseInt(parts[1]) || 0 };
-}
+function parseVal(str) { const p = str.toString().split('+'); return { b: parseInt(p[0]) || 1, s: parseInt(p[1]) || 0 }; }
 
 function calculate() {
     const mode = document.getElementById('mode').value;
-    const a = parseExpression(document.getElementById('agi').value);
-    const d = parseExpression(document.getElementById('dex').value);
-    const l = parseExpression(document.getElementById('luk').value);
-    const baseBonus = parseFloat(document.getElementById('bonus').value) || 0;
+    const a = parseVal(document.getElementById('agi').value);
+    const d = parseVal(document.getElementById('dex').value);
+    const l = parseVal(document.getElementById('luk').value);
+    const bonusInput = parseFloat(document.getElementById('bonus').value) || 0;
 
     let exA = 0, exD = 0, exL = 0, exB = 0;
     document.querySelectorAll('.buff-cb').forEach(cb => {
@@ -139,77 +149,59 @@ function calculate() {
         }
     });
 
-    const totalAgi = a.base + a.bonus + exA;
-    const totalDex = d.base + d.bonus + exD;
-    const totalLuk = l.base + l.bonus + exL;
-    const totalBonus = (baseBonus + exB) / 100;
+    const totA = a.b + a.s + exA; const totD = d.b + d.s + exD; const totL = l.b + l.s + exL;
+    const totB = (bonusInput + exB) / 100;
 
-    // 攻速運算
+    // 攻速運算：B=1.1109, D=67.5
     let B = (mode === 'unarmed') ? 1.1904 : 1.1109;
-    let D = 67.5; 
-    const f_raw = (B + (totalAgi + totalDex/4)/D) / (1 - totalBonus);
-    const final_f = Math.floor(Math.round(f_raw * 1000) / 10) / 100;
+    let D_val = 67.5;
+    const f = (B + (totA + totD/4)/D_val) / (1 - totB);
+    const finalF = Math.floor(Math.round(f * 1000) / 10) / 100;
 
-    // 獵鷹運算：LUK 135 與特技分離
+    // 獵鷹運算
     const stunt = document.getElementById('keen_falcon_cb').checked ? 
         {purple:{"1":14,"2":17,"3":20}, orange:{"1":22,"2":26,"3":30}}[document.getElementById('stunt_color').value][document.getElementById('stunt_lv').value] : 0;
-    const lukProc = Math.min(totalLuk / 3, 45); 
+    const lukProc = Math.min(totL / 3, 45); 
     const totalBird = Math.min(5 + lukProc + stunt, 80);
 
     // 分析建議
-    const reqAgi = Math.ceil(D * (7.0 * (1 - totalBonus) - B) - (totalDex / 4));
-    const agiDiff = reqAgi - totalAgi;
-    const lukDiff = 135 - totalLuk;
+    const rA = Math.ceil(D_val * (7.0 * (1 - totB) - B) - (totD / 4));
+    const dA = rA - totA; 
+    document.getElementById('agi_analysis').innerHTML = `⚡ <b>攻速：</b>${dA > 0 ? '距 7.0 還缺 <span style="color:#d93025">'+dA+'</span> AGI' : '已達標 (溢出 <span style="color:#1a73e8">'+Math.abs(dA)+'</span> 點)'}`;
+    
+    const dL = 135 - totL;
+    document.getElementById('luk_analysis').innerHTML = `🦅 <b>獵鷹：</b>${dL > 0 ? '距 45% 上限還缺 <span style="color:#d93025">'+dL+'</span> LUK' : 'LUK 已飽和 (溢出 <span style="color:#1a73e8">'+Math.abs(dL)+'</span> 點)'}`;
 
-    document.getElementById('res_f').innerText = final_f.toFixed(2);
+    // 更新介面
+    document.getElementById('res_f').innerText = finalF.toFixed(2);
     document.getElementById('res_bird').innerText = totalBird.toFixed(1) + '%';
-    document.getElementById('detail_info').innerHTML = `總 A: <b>${totalAgi}</b> | 總 D: <b>${totalDex}</b> | 加成: <b>${(totalBonus*100).toFixed(0)}%</b>`;
+    document.getElementById('detail_info').innerHTML = `總 A: <b>${totA}</b> | 總 D: <b>${totD}</b> | 加成: <b>${(totB*100).toFixed(0)}%</b>`;
     document.getElementById('detail_bird').innerHTML = `LUK 加成: ${lukProc.toFixed(1)}% | 特技: +${stunt}%`;
-
-    document.getElementById('agi_analysis').innerHTML = agiDiff > 0 ? `⚡ 距 7.0 還缺 <span style="color:#d93025">${agiDiff}</span> AGI` : `✅ 已達頂速！溢出 <span style="color:#1a73e8">${Math.abs(agiDiff)}</span> AGI`;
-    document.getElementById('luk_analysis').innerHTML = lukDiff > 0 ? `🦅 距 LUK 上限還缺 <span style="color:#d93025">${lukDiff}</span> LUK` : `✅ LUK 已飽和！溢出 <span style="color:#1a73e8">${Math.abs(lukDiff)}</span> LUK`;
 }
 
 function optimizePoints() {
-    let a = parseExpression(document.getElementById('agi').value);
-    let d = parseExpression(document.getElementById('dex').value);
-    let l = parseExpression(document.getElementById('luk').value);
-    const baseBonus = parseFloat(document.getElementById('bonus').value) || 0;
-
+    let a = parseVal(document.getElementById('agi').value);
+    let d = parseVal(document.getElementById('dex').value);
+    let l = parseVal(document.getElementById('luk').value);
+    const bonusVal = parseFloat(document.getElementById('bonus').value) || 0;
     let exA = 0, exD = 0, exL = 0, exB = 0;
     document.querySelectorAll('.buff-cb').forEach(cb => {
-        if (cb.checked) { exA += parseFloat(cb.getAttribute('data-agi') || 0); exD += parseFloat(cb.getAttribute('data-dex') || 0); exL += parseFloat(cb.getAttribute('data-luk') || 0); exB += parseFloat(cb.getAttribute('data-aspd') || 0); }
+        if (cb.checked) { exA += parseFloat(cb.getAttribute('data-agi')||0); exD += parseFloat(cb.getAttribute('data-dex')||0); exL += parseFloat(cb.getAttribute('data-luk')||0); exB += parseFloat(cb.getAttribute('data-aspd')||0); }
     });
 
     let pool = 0;
     for(let i=0; i<10; i++) {
-        let totalB = (baseBonus + exB) / 100;
-        let D_const = 67.5; let B_const = 1.1109;
-
-        // AGI 溢出回收
-        let targetA = Math.ceil(D_const * (7.0 * (1 - totalB) - B_const) - ((d.base + d.bonus + exD) / 4));
-        let diffA = (a.base + a.bonus + exA) - targetA;
-        if(diffA > 0 && a.base > 1) {
-            let n = Math.min(diffA, a.base - 1);
-            for(let j=0; j<n; j++) { pool += getCost(a.base); a.base--; }
-        }
-
-        // LUK 溢出回收 (135 上限)
-        let diffL = (l.base + l.bonus + exL) - 135;
-        if(diffL > 0 && l.base > 1) {
-            let n = Math.min(diffL, l.base - 1);
-            for(let j=0; j<n; j++) { pool += getCost(l.base); l.base--; }
-        }
-
-        // 投入 DEX
-        while(pool >= getCost(d.base + 1) && d.base < 99) {
-            d.base++; pool -= getCost(d.base);
-        }
+        let curB = (bonusVal + exB) / 100;
+        let tA = Math.ceil(67.5 * (7.0 * (1 - curB) - 1.1109) - ((d.b + d.s + exD) / 4));
+        let diffA = (a.b + a.s + exA) - tA;
+        if(diffA > 0 && a.b > 1) { let n = Math.min(diffA, a.b - 1); for(let j=0; j<n; j++) { pool += getCost(a.b); a.b--; } }
+        let diffL = (l.b + l.s + exL) - 135;
+        if(diffL > 0 && l.b > 1) { let n = Math.min(diffL, l.b - 1); for(let j=0; j<n; j++) { pool += getCost(l.b); l.b--; } }
+        while(pool >= getCost(d.b + 1) && d.b < 99) { d.b++; pool -= getCost(d.b); }
     }
-
-    document.getElementById('agi').value = `${a.base}+${a.bonus}`;
-    document.getElementById('dex').value = `${d.base}+${d.bonus}`;
-    document.getElementById('luk').value = `${l.base}+${l.bonus}`;
+    document.getElementById('agi').value = `${a.b}+${a.s}`;
+    document.getElementById('dex').value = `${d.b}+${d.s}`;
+    document.getElementById('luk').value = `${l.b}+${l.s}`;
     calculate();
 }
 calculate();
