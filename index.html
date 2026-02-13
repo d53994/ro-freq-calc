@@ -71,7 +71,7 @@
             <div><label>DEX</label><input type="text" id="dex" value="1" oninput="calculate()"></div>
             <div><label>LUK</label><input type="text" id="luk" value="1" oninput="calculate()"></div>
         </div>
-        <label>裝備加成 (%)</label>
+        <label>攻擊速度加成 (%)(如果有列表沒有的加成不管是寫攻擊速度加成+xx%或是aspd+xx%都可以填寫在這邊)</label>
         <input type="text" id="bonus" value="0" oninput="calculate()">
 
         <details>
@@ -92,6 +92,68 @@
                 <label class="buff-item"><input type="checkbox" class="buff-cb" data-aspd="25" onchange="calculate()"> 獵鷹突擊 (25%)</label>
                 <label class="buff-item"><input type="checkbox" class="buff-cb" data-agi="10" data-dex="10" data-luk="20" onchange="calculate()"> 心神凝聚 (A/D+10, L+20)</label>
                 <label class="buff-item"><input type="checkbox" class="buff-cb" data-agi="5" data-dex="5" data-luk="5" onchange="calculate()"> 狙殺瞄準 (A/D/L+5)</label>
+            </div>
+        </details>
+
+        <details>
+            <summary>⚙️ 盧恩引擎</summary>
+            <div class="buff-grid">
+                <div class="buff-item">
+                    <span style="margin-right: 10px;">引擎共鳴:</span>
+                    <select id="rune_resonance" onchange="calculate()" style="width: auto;">
+                        <option value="0">無共鳴 (0%)</option>
+                        <option value="4">綠 4 共鳴 (4%)</option>
+                        <option value="8">綠 7 共鳴 (8%)</option>
+                    </select>
+                </div>
+
+                <hr style="border: 0.5px solid #eee; width: 100%; margin: 5px 0;">
+
+                <div class="buff-item">
+                    <input type="checkbox" id="stunt_master_cb" onchange="calculate()">
+                    <span style="margin-right: 5px;">特技高手:</span>
+                    <select id="stunt_master_lv" onchange="calculate()" style="width: auto;">
+                        <option value="6">Lv 3 (6%)</option>
+                        <option value="11">Lv 3 + 天工 (11%)</option>
+                        <option value="8">Lv 4 (8%)</option>
+                        <option value="13">Lv 4 + 天工 (13%)</option>
+                    </select>
+                </div>
+            </div>
+        </details>
+
+        <details>
+            <summary>🛡️ 飾品(只專注於有提供攻擊速度%的飾品)</summary>
+            <div class="buff-grid">
+                <div class="buff-item">
+                    <span style="font-weight:bold; width: 60px;">飾品(左)</span>
+                    <select id="acc_l_type" onchange="calculate()" style="margin: 0 5px;">
+                        <option value="none">無</option>
+                        <option value="horn">牛角</option>
+                        <option value="pendant">墜子</option>
+                        <option value="belt">腰帶</option>
+                    </select>
+                    <select id="acc_l_refine" onchange="calculate()">
+                        <option value="5">+5</option>
+                        <option value="10">+10</option>
+                        <option value="15">+15</option>
+                    </select>
+                </div>
+
+                <div class="buff-item">
+                    <span style="font-weight:bold; width: 60px;">飾品(右)</span>
+                    <select id="acc_r_type" onchange="calculate()" style="margin: 0 5px;">
+                        <option value="none">無</option>
+                        <option value="horn">牛角</option>
+                        <option value="pendant">墜子</option>
+                        <option value="belt">腰帶</option>
+                    </select>
+                    <select id="acc_r_refine" onchange="calculate()">
+                        <option value="5">+5</option>
+                        <option value="10">+10</option>
+                        <option value="15">+15</option>
+                    </select>
+                </div>
             </div>
         </details>
     </div>
@@ -136,14 +198,46 @@
 function getCost(v) { return Math.floor((Math.min(v, 99) - 2) / 10) + 2; }
 function parseVal(str) { const p = str.toString().split('+'); return { b: parseInt(p[0]) || 1, s: parseInt(p[1]) || 0 }; }
 
+//飾品字典
+const accDictionary = {
+    'none': { '5': 0, '10': 0, '15': 0 },
+    'horn': { '5': 0, '10': 3, '15': 3 }, // 牛角 +10 給 3%，+15 暫定比照 +10
+    'pendant': { '5': 2, '10': 4, '15': 7 }, // 墜子規律：2, 4, 7
+    'belt': { '5': 0, '10': 0, '15': 0 }    // 腰帶本身無加成
+};
+
 function calculate() {
+    //初始化所有外部加成
+    let exA = 0, exD = 0, exL = 0, exB = 0;
+    
+    //取得基礎輸入值
     const mode = document.getElementById('mode').value;
     const a = parseVal(document.getElementById('agi').value);
     const d = parseVal(document.getElementById('dex').value);
     const l = parseVal(document.getElementById('luk').value);
     const bonusInput = parseFloat(document.getElementById('bonus').value) || 0;
+    
+    //取得左右飾品狀態
+    const typeL = document.getElementById('acc_l_type').value;
+    const refL = document.getElementById('acc_l_refine').value;
+    const typeR = document.getElementById('acc_r_type').value;
+    const refR = document.getElementById('acc_r_refine').value;
 
-    let exA = 0, exD = 0, exL = 0, exB = 0;
+    //計算飾品給予攻速
+    exB += accDictionary[typeL][refL];
+    exB += accDictionary[typeR][refR];
+    const isSet = (typeL === 'pendant' && typeR === 'belt') || (typeL === 'belt' && typeR === 'pendant');
+    if (isSet) {
+        exB += 1;
+    }
+
+    //讀取盧恩引擎加成
+    exB += parseFloat(document.getElementById('rune_resonance').value || 0);
+    // 讀取特技高手 (需判斷是否勾選)
+    if (document.getElementById('stunt_master_cb').checked) {
+        exB += parseFloat(document.getElementById('stunt_master_lv').value || 0);
+    }
+
     document.querySelectorAll('.buff-cb').forEach(cb => {
         if (cb.checked) {
             exA += parseFloat(cb.getAttribute('data-agi') || 0);
