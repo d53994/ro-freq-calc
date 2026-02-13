@@ -199,181 +199,150 @@ function getCost(v) { return Math.floor((Math.min(v, 99) - 2) / 10) + 2; }
 function parseVal(str) { const p = str.toString().split('+'); return { b: parseInt(p[0]) || 1, s: parseInt(p[1]) || 0 }; }
 
 //飾品字典
+// --- 核心資料與字典 ---
+// === [1] 參數與字典定義 ===
 const accDictionary = {
     'none': { '5': 0, '10': 0, '15': 0 },
-    'horn': { '5': 0, '10': 3, '15': 3 }, // 牛角 +10 給 3%，+15 暫定比照 +10
-    'pendant': { '5': 2, '10': 4, '15': 7 }, // 墜子規律：2, 4, 7
-    'belt': { '5': 0, '10': 0, '15': 0 }    // 腰帶本身無加成
+    'horn': { '5': 0, '10': 3, '15': 3 },
+    'pendant': { '5': 2, '10': 4, '15': 7 },
+    'belt': { '5': 0, '10': 0, '15': 0 }
 };
 
-function calculate() {
-    //初始化所有外部加成
-    let exA = 0, exD = 0, exL = 0, exB = 0;
-    
-    //取得基礎輸入值
-    const mode = document.getElementById('mode').value;
-    const a = parseVal(document.getElementById('agi').value);
-    const d = parseVal(document.getElementById('dex').value);
-    const l = parseVal(document.getElementById('luk').value);
-    const bonusInput = parseFloat(document.getElementById('bonus').value) || 0;
-    
-    //取得左右飾品狀態
+// 成本階梯函數 C(v)
+function getCost(v) { return Math.floor((Math.min(v, 99) - 2) / 10) + 2; }
+// 輸入解析器
+function parseVal(str) { const p = str.toString().split('+'); return { b: parseInt(p[0]) || 1, s: parseInt(p[1]) || 0 }; }
+
+// [核心] 統一取得所有外部加成 (包含手動 bonus 欄位)
+function getExStats() {
+    let ex = { a: 0, d: 0, l: 0, b: 0 };
+
+    // 1. 手動輸入的加成欄位 (ID: bonus)
+    ex.b += parseFloat(document.getElementById('bonus').value) || 0;
+
+    // 2. 飾品字典加成
     const typeL = document.getElementById('acc_l_type').value;
     const refL = document.getElementById('acc_l_refine').value;
     const typeR = document.getElementById('acc_r_type').value;
     const refR = document.getElementById('acc_r_refine').value;
+    ex.b += accDictionary[typeL][refL];
+    ex.b += accDictionary[typeR][refR];
+    if ((typeL === 'pendant' && typeR === 'belt') || (typeL === 'belt' && typeR === 'pendant')) { ex.b += 1; }
 
-    //計算飾品給予攻速
-    exB += accDictionary[typeL][refL];
-    exB += accDictionary[typeR][refR];
-    const isSet = (typeL === 'pendant' && typeR === 'belt') || (typeL === 'belt' && typeR === 'pendant');
-    if (isSet) {
-        exB += 1;
-    }
-
-    //讀取盧恩引擎加成
-    exB += parseFloat(document.getElementById('rune_resonance').value || 0);
-    // 讀取特技高手 (需判斷是否勾選)
+    // 3. 盧恩引擎
+    ex.b += parseFloat(document.getElementById('rune_resonance').value || 0);
     if (document.getElementById('stunt_master_cb').checked) {
-        exB += parseFloat(document.getElementById('stunt_master_lv').value || 0);
+        ex.b += parseFloat(document.getElementById('stunt_master_lv').value || 0);
     }
 
+    // 4. 勾選框 Buff
     document.querySelectorAll('.buff-cb').forEach(cb => {
         if (cb.checked) {
-            exA += parseFloat(cb.getAttribute('data-agi') || 0);
-            exD += parseFloat(cb.getAttribute('data-dex') || 0);
-            exL += parseFloat(cb.getAttribute('data-luk') || 0);
-            exB += parseFloat(cb.getAttribute('data-aspd') || 0);
+            ex.a += parseFloat(cb.getAttribute('data-agi') || 0);
+            ex.d += parseFloat(cb.getAttribute('data-dex') || 0);
+            ex.l += parseFloat(cb.getAttribute('data-luk') || 0);
+            ex.b += parseFloat(cb.getAttribute('data-aspd') || 0);
         }
     });
+    return ex;
+}
 
-    const totA = a.b + a.s + exA; const totD = d.b + d.s + exD; const totL = l.b + l.s + exL;
-    const totB = (bonusInput + exB) / 100;
+function calculate() {
+    const ex = getExStats();
+    const mode = document.getElementById('mode').value;
+    const a = parseVal(document.getElementById('agi').value);
+    const d = parseVal(document.getElementById('dex').value);
+    const l = parseVal(document.getElementById('luk').value);
 
-    // 攻速運算：B=1.1109, D=67.5
-    let B = (mode === 'unarmed') ? 1.1904 : 1.1109;
+    const totA = a.b + a.s + ex.a; 
+    const totD = d.b + d.s + ex.d; 
+    const totL = l.b + l.s + ex.l;
+    const totB = ex.b / 100; 
+
+    let B_val = (mode === 'unarmed') ? 1.1904 : 1.1109;
     let D_val = 67.5;
-    const f = (B + (totA + totD/4)/D_val) / (1 - totB);
+    const f = (B_val + (totA + totD / 4) / D_val) / (1 - totB);
     const finalF = Math.floor(Math.round(f * 1000) / 10) / 100;
 
-    // 獵鷹運算
+    // 獵鷹出擊率
     const stunt = document.getElementById('keen_falcon_cb').checked ? 
         {purple:{"1":14,"2":17,"3":20}, orange:{"1":22,"2":26,"3":30}}[document.getElementById('stunt_color').value][document.getElementById('stunt_lv').value] : 0;
     const lukProc = Math.min(totL / 3, 45); 
     const totalBird = Math.min(5 + lukProc + stunt, 80);
 
-    // 分析建議
-    const rA = Math.ceil(D_val * (7.0 * (1 - totB) - B) - (totD / 4));
+    // === [新增/恢復] 分析建議邏輯 ===
+    // 計算達到秒 7 所需的 AGI (反向推導)
+    const rA = Math.ceil(D_val * (7.0 * (1 - totB) - B_val) - (totD / 4));
     const dA = rA - totA; 
     document.getElementById('agi_analysis').innerHTML = `⚡ <b>攻速：</b>${dA > 0 ? '距 7.0 還缺 <span style="color:#d93025">'+dA+'</span> AGI' : '已達標 (溢出 <span style="color:#1a73e8">'+Math.abs(dA)+'</span> 點)'}`;
     
+    // 計算 LUK 飽和度
     const dL = 135 - totL;
     document.getElementById('luk_analysis').innerHTML = `🦅 <b>獵鷹：</b>${dL > 0 ? '距 45% 上限還缺 <span style="color:#d93025">'+dL+'</span> LUK' : 'LUK 已飽和 (溢出 <span style="color:#1a73e8">'+Math.abs(dL)+'</span> 點)'}`;
 
-    // 更新介面
+    // 更新介面數值
     document.getElementById('res_f').innerText = finalF.toFixed(2);
     document.getElementById('res_bird').innerText = totalBird.toFixed(1) + '%';
-    document.getElementById('detail_info').innerHTML = `總 A: <b>${totA}</b> | 總 D: <b>${totD}</b> | 加成: <b>${(totB*100).toFixed(0)}%</b>`;
-    document.getElementById('detail_bird').innerHTML = `總 L: <b>${totL}</b> | LUK 加成: ${lukProc.toFixed(1)}% | 特技: +${stunt}%`;
+    document.getElementById('detail_info').innerHTML = `總 A: <b>${totA}</b> | 總 D: <b>${totD}</b> | 總加成: <b>${(totB*100).toFixed(0)}%</b>`;
+    document.getElementById('detail_bird').innerHTML = `總 L: <b>${totL}</b> | LUK 貢獻: ${lukProc.toFixed(1)}% | 特技: +${stunt}%`;
 }
 
 function optimizePoints() {
-    // 1. 初始化環境變數
+    const ex = getExStats();
     const mode = document.getElementById('mode').value;
-    const bonusVal = parseFloat(document.getElementById('bonus').value) || 0;
     const pool_limit = parseInt(document.getElementById('status_pool').value) || 0;
     
-    let exA = 0, exD = 0, exL = 0, exB = 0;
-    document.querySelectorAll('.buff-cb').forEach(cb => {
-        if (cb.checked) {
-            exA += parseFloat(cb.getAttribute('data-agi') || 0);
-            exD += parseFloat(cb.getAttribute('data-dex') || 0);
-            exL += parseFloat(cb.getAttribute('data-luk') || 0);
-            exB += parseFloat(cb.getAttribute('data-aspd') || 0);
-        }
-    });
-
-    // 2. 核心計算閉包：給予基礎 A/D/L，回傳當前總頻率與總 LUK
     const getSnapshot = (baseA, baseD, baseL) => {
-        const tA = baseA + parseVal(document.getElementById('agi').value).s + exA;
-        const tD = baseD + parseVal(document.getElementById('dex').value).s + exD;
-        const tL = baseL + parseVal(document.getElementById('luk').value).s + exL;
-        const tB = (bonusVal + exB) / 100;
-        let B = (mode === 'unarmed') ? 1.1904 : 1.1109;
-        const f = (B + (tA + tD / 4) / 67.5) / (1 - tB);
-        return { 
-            freq: Math.floor(Math.round(f * 1000) / 10) / 100, 
-            luk: tL 
-        };
+        const tA = baseA + parseVal(document.getElementById('agi').value).s + ex.a;
+        const tD = baseD + parseVal(document.getElementById('dex').value).s + ex.d;
+        const tL = baseL + parseVal(document.getElementById('luk').value).s + ex.l;
+        const tB = ex.b / 100;
+        let B_const = (mode === 'unarmed') ? 1.1904 : 1.1109;
+        const f = (B_const + (tA + tD / 4) / 67.5) / (1 - tB);
+        return { freq: Math.floor(Math.round(f * 1000) / 10) / 100, luk: tL };
     };
 
-    // 3. 開始優化流程：重設基礎點數為 1
     let bA = 1, bD = 1, bL = 1;
     let currentPool = pool_limit;
 
-    // A. 優先湊滿 LUK 135 (總值)
+    // 1. 優先滿足 LUK 135
     while (getSnapshot(bA, bD, bL).luk < 135 && bL < 99) {
         let cost = getCost(bL + 1);
-        if (currentPool >= cost) {
-            bL++;
-            currentPool -= cost;
-        } else break;
+        if (currentPool >= cost) { bL++; currentPool -= cost; } else break;
     }
-
-    // B. 達成秒 7 攻速 (先用 AGI 填補，因為 AGI 對 ASPD 效率最高)
+    // 2. 達成秒 7.0 攻速
     while (getSnapshot(bA, bD, bL).freq < 7.0 && bA < 99) {
         let cost = getCost(bA + 1);
-        if (currentPool >= cost) {
-            bA++;
-            currentPool -= cost;
-        } else break;
+        if (currentPool >= cost) { bA++; currentPool -= cost; } else break;
     }
-
-    // C. 剩餘點數全部投入 DEX
+    // 3. 剩下全點 DEX
     while (bD < 99) {
         let cost = getCost(bD + 1);
-        if (currentPool >= cost) {
-            bD++;
-            currentPool -= cost;
-        } else break;
+        if (currentPool >= cost) { bD++; currentPool -= cost; } else break;
     }
-
-    // D. 關鍵校正 (遞迴交換)：
-    // 因為增加 DEX 會微量提升攻速，可能導致 AGI 產生溢出點數。
-    // 我們嘗試將 AGI 點數回收並轉投 DEX，直到頻率剛好維持在 7.0。
+    // 4. 校正 AGI 溢出 (DEX 回饋補正)
     for (let i = 0; i < 15; i++) {
-        // 嘗試回收 1 點 AGI
         if (bA > 1) {
             let refund = getCost(bA);
-            let tempA = bA - 1;
-            // 檢查回收後，DEX 是否能利用這些點數提升並維持秒 7
             let testPool = currentPool + refund;
             let tempD = bD;
             while (testPool >= getCost(tempD + 1) && tempD < 99) {
                 testPool -= getCost(tempD + 1);
                 tempD++;
             }
-            
-            // 判斷式：如果回收後頻率依然 >= 7.0，或者 tempD 有提升且頻率達標
-            if (getSnapshot(tempA, tempD, bL).freq >= 7.0) {
-                bA = tempA;
-                bD = tempD;
-                currentPool = testPool;
+            if (getSnapshot(bA - 1, tempD, bL).freq >= 7.0) {
+                bA--; bD = tempD; currentPool = testPool;
             }
         }
     }
 
-    // 4. 更新結果到 UI
     document.getElementById('agi').value = `${bA}+${parseVal(document.getElementById('agi').value).s}`;
     document.getElementById('dex').value = `${bD}+${parseVal(document.getElementById('dex').value).s}`;
     document.getElementById('luk').value = `${bL}+${parseVal(document.getElementById('luk').value).s}`;
-    
-    // 顯示剩餘點數資訊在分析區
-    document.getElementById('detail_info').innerHTML += ` | <span style="color:#2e7d32">剩餘點數: ${currentPool}</span>`;
-    
     calculate();
+    document.getElementById('detail_info').innerHTML += ` | <span style="color:#2e7d32">剩餘點數: ${currentPool}</span>`;
 }
-calculate();
+    calculate();
 </script>
 </body>
 </html>
