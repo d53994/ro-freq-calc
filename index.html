@@ -61,7 +61,14 @@
 
     <div class="input-section">
         <label>狀態模式</label>
-        <select id="mode" onchange="calculate()"><option value="weapon">拿武器 (預設)</option><option value="unarmed">空手狀態</option></select>
+        <select id="mode" onchange="calculate()">
+            <option value="weapon">拿弓箭</option>
+            <option value="pistol_normal">一般手槍</option>
+            <option value="pistol_special">紅翼左輪手槍</option> <!-- 獨立出來 -->
+            <option value="gatling">機關槍</option>
+            <option value="shotgun">霰彈槍</option>
+            <option value="rifle">來福槍</option>
+        </select>
         <div style="background: #eef7ee; padding: 10px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #cce8cc;">
         <label style="color: #2e7d32;">💎 可用素質點數總量 (Status Points Pool)</label>
             <input type="number" id="status_pool" value="2000" oninput="calculate()" style="width: 100%; padding: 8px; border: 1px solid #7dc47d; border-radius: 6px;">
@@ -114,9 +121,9 @@
                     <span style="margin-right: 5px;">特技高手:</span>
                     <select id="stunt_master_lv" onchange="calculate()" style="width: auto;">
                         <option value="6">Lv 3 (6%)</option>
-                        <option value="11">Lv 3 + 天工 (11%)</option>
+                        <option value="13">Lv 3 + 天工 (13%)</option>
                         <option value="8">Lv 4 (8%)</option>
-                        <option value="13">Lv 4 + 天工 (13%)</option>
+                        <option value="15">Lv 4 + 天工 (15%)</option>
                     </select>
                 </div>
             </div>
@@ -244,6 +251,13 @@ function getExStats() {
             ex.b += parseFloat(cb.getAttribute('data-aspd') || 0);
         }
     });
+    // === [新增] 5. 特定武器自帶攻速加成 ===
+    const currentMode = document.getElementById('mode').value;
+    if (currentMode === 'pistol_special') {
+        ex.b += 4; // 如果選了紅翼手槍，系統自動在背景幫你填入 4%
+    }
+
+    return ex;
     return ex;
 }
 
@@ -253,38 +267,53 @@ function calculate() {
     const a = parseVal(document.getElementById('agi').value);
     const d = parseVal(document.getElementById('dex').value);
     const l = parseVal(document.getElementById('luk').value);
-
-    const totA = a.b + a.s + ex.a; 
-    const totD = d.b + d.s + ex.d; 
+    
+    const totA = a.b + a.s + ex.a;
+    const totD = d.b + d.s + ex.d;
     const totL = l.b + l.s + ex.l;
-    const totB = ex.b / 100; 
+    const totB = ex.b / 100;
 
-    let B_val = (mode === 'unarmed') ? 1.1904 : 1.1109;
-    let D_val = 67.5;
-    const f = (B_val + (totA + totD / 4) / D_val) / (1 - totB);
+    // === 新增：動態判斷武器的 B (基礎頻率) 與 D (武器係數) ===
+    let B_val, D_val;
+    switch (mode) {
+        case 'pistol_normal':  B_val = 1.10025; D_val = 67.22;      break; // 一般手槍
+        case 'pistol_special': B_val = 1.1007;  D_val = 66.55;      break; // 你那把特殊手槍
+        case 'gatling':        B_val = 1.08075; D_val = 80 / 1.17;  break;
+        case 'shotgun':        B_val = 1.02225; D_val = 80 / 1.11;  break;
+        case 'rifle':          B_val = 1.06150; D_val = 80 / 1.14;  break;
+        case 'unarmed':        B_val = 1.1904;  D_val = 63;         break;
+        default:               B_val = 1.1109;  D_val = 67.5;       break;
+    }
+
+    // 計算最終頻率
+    let f = (B_val + (totA + totD / 4) / D_val) / (1 - totB);
+
+    // 針對槍手吃攻速 Buff 的隱藏補正 (當有攻速加成且非弓箭、非空手時)
+    if (mode !== 'weapon' && mode !== 'unarmed' && totB > 0) {
+        f += 0.015; // 補回遊戲偷偷給槍手的那一點頻率優勢
+    }
+
     const finalF = Math.floor(Math.round(f * 1000) / 10) / 100;
-
     // 獵鷹出擊率
     const stunt = document.getElementById('keen_falcon_cb').checked ? 
         {purple:{"1":14,"2":17,"3":20}, orange:{"1":22,"2":26,"3":30}}[document.getElementById('stunt_color').value][document.getElementById('stunt_lv').value] : 0;
-    const lukProc = Math.min(totL / 3, 45); 
+    const lukProc = Math.min(totL / 3, 45);
     const totalBird = Math.min(5 + lukProc + stunt, 80);
 
-    // === [新增/恢復] 分析建議邏輯 ===
-    // 計算達到秒 7 所需的 AGI (反向推導)
+    // 分析建議邏輯 (反向推導秒7所需AGI)
     const rA = Math.ceil(D_val * (7.0 * (1 - totB) - B_val) - (totD / 4));
-    const dA = rA - totA; 
-    document.getElementById('agi_analysis').innerHTML = `⚡ <b>攻速：</b>${dA > 0 ? '距 7.0 還缺 <span style="color:#d93025">'+dA+'</span> AGI' : '已達標 (溢出 <span style="color:#1a73e8">'+Math.abs(dA)+'</span> 點)'}`;
+    const dA = rA - totA;
+    document.getElementById('agi_analysis').innerHTML = `⚡ 攻速：${dA > 0 ? '距7.0 還缺 ' + dA + ' AGI' : '已達標 (溢出' + Math.abs(dA) + ' 點)'}`;
     
     // 計算 LUK 飽和度
     const dL = 135 - totL;
-    document.getElementById('luk_analysis').innerHTML = `🦅 <b>獵鷹：</b>${dL > 0 ? '距 45% 上限還缺 <span style="color:#d93025">'+dL+'</span> LUK' : 'LUK 已飽和 (溢出 <span style="color:#1a73e8">'+Math.abs(dL)+'</span> 點)'}`;
+    document.getElementById('luk_analysis').innerHTML = `🦅 獵鷹：${dL > 0 ? '距45% 上限還缺 ' + dL + ' LUK' : 'LUK 已飽和 (溢出' + Math.abs(dL) + ' 點)'}`;
 
     // 更新介面數值
     document.getElementById('res_f').innerText = finalF.toFixed(2);
     document.getElementById('res_bird').innerText = totalBird.toFixed(1) + '%';
-    document.getElementById('detail_info').innerHTML = `總 A: <b>${totA}</b> | 總 D: <b>${totD}</b> | 總加成: <b>${(totB*100).toFixed(0)}%</b>`;
-    document.getElementById('detail_bird').innerHTML = `總 L: <b>${totL}</b> | LUK 貢獻: ${lukProc.toFixed(1)}% | 特技: +${stunt}%`;
+    document.getElementById('detail_info').innerHTML = `總A: <b>${totA}</b> | 總D: <b>${totD}</b> | 總加成: <b>${(totB*100).toFixed(0)}%</b>`;
+    document.getElementById('detail_bird').innerHTML = `總L: <b>${totL}</b> | LUK 貢獻: ${lukProc.toFixed(1)}% | 特技: +${stunt}%`;
 }
 
 function optimizePoints() {
@@ -292,34 +321,59 @@ function optimizePoints() {
     const mode = document.getElementById('mode').value;
     const pool_limit = parseInt(document.getElementById('status_pool').value) || 0;
     
+    // 在優化器中的快照也要套用新的武器係數
     const getSnapshot = (baseA, baseD, baseL) => {
         const tA = baseA + parseVal(document.getElementById('agi').value).s + ex.a;
         const tD = baseD + parseVal(document.getElementById('dex').value).s + ex.d;
         const tL = baseL + parseVal(document.getElementById('luk').value).s + ex.l;
         const tB = ex.b / 100;
-        let B_const = (mode === 'unarmed') ? 1.1904 : 1.1109;
-        const f = (B_const + (tA + tD / 4) / 67.5) / (1 - tB);
+        
+        let B_const, D_const;
+        switch (mode) {
+            case 'pistol':  B_const = 1.10025; D_const = 80 / 1.19; break;
+            case 'gatling': B_const = 1.08075; D_const = 80 / 1.17; break;
+            case 'shotgun': B_const = 1.02225; D_const = 80 / 1.11; break;
+            case 'rifle':   B_const = 1.06150; D_const = 80 / 1.14; break;
+            case 'unarmed': B_const = 1.1904;  D_const = 63;        break;
+            default:        B_const = 1.1109;  D_const = 67.5;      break;
+        }
+        
+        const f = (B_const + (tA + tD / 4) / D_const) / (1 - tB);
         return { freq: Math.floor(Math.round(f * 1000) / 10) / 100, luk: tL };
     };
 
     let bA = 1, bD = 1, bL = 1;
     let currentPool = pool_limit;
 
-    // 1. 優先滿足 LUK 135
-    while (getSnapshot(bA, bD, bL).luk < 135 && bL < 99) {
-        let cost = getCost(bL + 1);
-        if (currentPool >= cost) { bL++; currentPool -= cost; } else break;
+    // === 新增：依據武器類型決定配點優先級 ===
+    if (mode === 'weapon') {
+        // 弓箭(預設)：1. 優先滿足 LUK 135 -> 2. 達成秒 7 攻速
+        while (getSnapshot(bA, bD, bL).luk < 135 && bL < 99) {
+            let cost = getCost(bL + 1);
+            if (currentPool >= cost) { bL++; currentPool -= cost; } else break;
+        }
+        while (getSnapshot(bA, bD, bL).freq < 7.0 && bA < 99) {
+            let cost = getCost(bA + 1);
+            if (currentPool >= cost) { bA++; currentPool -= cost; } else break;
+        }
+    } else {
+        // 槍手 / 空手：1. 優先達成秒 7 攻速 -> 2. 才滿足 LUK 135
+        while (getSnapshot(bA, bD, bL).freq < 7.0 && bA < 99) {
+            let cost = getCost(bA + 1);
+            if (currentPool >= cost) { bA++; currentPool -= cost; } else break;
+        }
+        while (getSnapshot(bA, bD, bL).luk < 135 && bL < 99) {
+            let cost = getCost(bL + 1);
+            if (currentPool >= cost) { bL++; currentPool -= cost; } else break;
+        }
     }
-    // 2. 達成秒 7.0 攻速
-    while (getSnapshot(bA, bD, bL).freq < 7.0 && bA < 99) {
-        let cost = getCost(bA + 1);
-        if (currentPool >= cost) { bA++; currentPool -= cost; } else break;
-    }
+
     // 3. 剩下全點 DEX
     while (bD < 99) {
         let cost = getCost(bD + 1);
         if (currentPool >= cost) { bD++; currentPool -= cost; } else break;
     }
+
     // 4. 校正 AGI 溢出 (DEX 回饋補正)
     for (let i = 0; i < 15; i++) {
         if (bA > 1) {
@@ -339,6 +393,7 @@ function optimizePoints() {
     document.getElementById('agi').value = `${bA}+${parseVal(document.getElementById('agi').value).s}`;
     document.getElementById('dex').value = `${bD}+${parseVal(document.getElementById('dex').value).s}`;
     document.getElementById('luk').value = `${bL}+${parseVal(document.getElementById('luk').value).s}`;
+    
     calculate();
     document.getElementById('detail_info').innerHTML += ` | <span style="color:#2e7d32">剩餘點數: ${currentPool}</span>`;
 }
