@@ -43,20 +43,23 @@
         .opt-btn:hover { background: #2d8e47; box-shadow: 0 4px 15px rgba(52, 168, 83, 0.4); transform: translateY(-2px); }
 
         .footer { grid-column: 1 / -1; font-size: 12px; color: #70757a; text-align: center; margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px; }
+        
+        .hint-text { font-size: 12px; color: #e53935; margin-top: 4px; display: none; font-weight: bold; }
+
         @media (max-width: 1024px) { .container { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>RO 攻速與獵鷹計算機 v3.5</h2>
+    <h2>RO 攻速與獵鷹計算機 v3.6</h2>
     
     <div class="instruction-section">
         <h3>📖 計算機使用說明</h3>
         <p><b>1. 屬性輸入：</b><br>支援如 <span class="math-note">99+45</span> 格式。優化器僅調整「+」左側基礎值。</p>
         <p><b>2. 攻速擬合：</b><br>基於 0.0000 殘差模型。頂速上限鎖定於 <span class="math-note">7.0</span>。</p>
         <p><b>3. 獵鷹機制：</b><br>LUK 加成上限為 45% (135 LUK)。特技加成獨立疊加，最高可達 80%。</p>
-        <p><b>4. 可用素質點數總量：</b><br>可以重置素質加點，查看並輸入剩餘點數最大值，按下執行無溢出能力值優化，可實現效率最大化。(優先幸運135>攻擊頻率秒7>其餘點DEX)</p>
+        <p><b>4. 可用素質點數總量：</b><br>可以重置素質加點，查看並輸入剩餘點數最大值，按下執行無溢出能力值優化，可實現效率最大化。(優先幸運135 > 攻擊頻率秒7 > 其餘點DEX)</p>
     </div>
 
     <div class="input-section">
@@ -64,12 +67,15 @@
         <select id="mode" onchange="calculate()">
             <option value="weapon">拿弓箭</option>
             <option value="pistol_normal">一般手槍</option>
-            <option value="pistol_special">紅翼左輪手槍</option> <!-- 獨立出來 -->
+            <option value="pistol_special">紅翼左輪手槍</option>
             <option value="gatling">機關槍</option>
             <option value="shotgun">霰彈槍</option>
             <option value="rifle">來福槍</option>
+            <option value="unarmed">空手</option>
         </select>
-        <div style="background: #eef7ee; padding: 10px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #cce8cc;">
+        <div id="pistol_hint" class="hint-text">* 已在背景自動套用紅翼專屬 4% 攻速加成</div>
+
+        <div style="background: #eef7ee; padding: 10px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #cce8cc; margin-top: 10px;">
         <label style="color: #2e7d32;">💎 可用素質點數總量 (Status Points Pool)</label>
             <input type="number" id="status_pool" value="2000" oninput="calculate()" style="width: 100%; padding: 8px; border: 1px solid #7dc47d; border-radius: 6px;">
         </div>
@@ -78,7 +84,7 @@
             <div><label>DEX</label><input type="text" id="dex" value="1" oninput="calculate()"></div>
             <div><label>LUK</label><input type="text" id="luk" value="1" oninput="calculate()"></div>
         </div>
-        <label>攻擊速度加成 (%)(如果有列表沒有的加成不管是寫攻擊速度加成+xx%或是aspd+xx%都可以填寫在這邊)</label>
+        <label>攻擊速度加成 (%)(如果有列表沒有的加成，寫著 ASPD+xx% 都可填寫於此)</label>
         <input type="text" id="bonus" value="0" oninput="calculate()">
 
         <details>
@@ -130,7 +136,7 @@
         </details>
 
         <details>
-            <summary>🛡️ 飾品(只專注於有提供攻擊速度%的飾品)</summary>
+            <summary>🛡️ 飾品 (專注於提供攻擊速度 %)</summary>
             <div class="buff-grid">
                 <div class="buff-item">
                     <span style="font-weight:bold; width: 60px;">飾品(左)</span>
@@ -181,7 +187,7 @@
                     <input type="checkbox" id="keen_falcon_cb" onchange="calculate()"> 啟用特技：敏銳獵鷹
                 </label>
                 <div class="stunt-controls">
-                    <select id="stunt_color" onchange="calculate()"><option value="purple">紫色品質</option><option value="orange">橘色品質</option></select>
+                    <select id="stunt_color" onchange="calculate()"><option value="purple">紫色品質</option><option value="orange">橘色品質</option><option value="red">紅色品質</option></select>
                     <select id="stunt_lv" onchange="calculate()"><option value="1">Lv 1</option><option value="2">Lv 2</option><option value="3">Lv 3</option></select>
                 </div>
             </div>
@@ -201,13 +207,7 @@
 </div>
 
 <script>
-// --- 核心運算系統 ---
-function getCost(v) { return Math.floor((Math.min(v, 99) - 2) / 10) + 2; }
-function parseVal(str) { const p = str.toString().split('+'); return { b: parseInt(p[0]) || 1, s: parseInt(p[1]) || 0 }; }
-
-//飾品字典
 // --- 核心資料與字典 ---
-// === [1] 參數與字典定義 ===
 const accDictionary = {
     'none': { '5': 0, '10': 0, '15': 0 },
     'horn': { '5': 0, '10': 3, '15': 3 },
@@ -215,16 +215,35 @@ const accDictionary = {
     'belt': { '5': 0, '10': 0, '15': 0 }
 };
 
+// 全域武器常數字典 (解決多次 Switch Case 不一致的問題)
+const weaponDictionary = {
+    'weapon':         { B: 1.1109,  D: 67.5 },     // 弓箭
+    'pistol_normal':  { B: 1.10025, D: 80 / 1.19 },// 一般手槍
+    'pistol_special': { B: 1.1007,  D: 66.55 },    // 紅翼左輪
+    'gatling':        { B: 1.08075, D: 80 / 1.17 },// 機關槍
+    'shotgun':        { B: 1.02225, D: 80 / 1.11 },// 霰彈槍
+    'rifle':          { B: 1.06150, D: 80 / 1.14 },// 來福槍
+    'unarmed':        { B: 1.1904,  D: 63 }        // 空手
+};
+
 // 成本階梯函數 C(v)
 function getCost(v) { return Math.floor((Math.min(v, 99) - 2) / 10) + 2; }
-// 輸入解析器
-function parseVal(str) { const p = str.toString().split('+'); return { b: parseInt(p[0]) || 1, s: parseInt(p[1]) || 0 }; }
 
-// [核心] 統一取得所有外部加成 (包含手動 bonus 欄位)
+// 輸入解析器 (增加防呆，避免解析出 NaN 導致整個程式崩潰)
+function parseVal(str) { 
+    if (!str) return { b: 1, s: 0 };
+    const p = str.toString().split('+'); 
+    return { 
+        b: Math.max(1, parseInt(p[0]) || 1), 
+        s: parseInt(p[1]) || 0 
+    }; 
+}
+
+// 統一取得所有外部加成
 function getExStats() {
     let ex = { a: 0, d: 0, l: 0, b: 0 };
 
-    // 1. 手動輸入的加成欄位 (ID: bonus)
+    // 1. 手動輸入的加成欄位
     ex.b += parseFloat(document.getElementById('bonus').value) || 0;
 
     // 2. 飾品字典加成
@@ -251,13 +270,13 @@ function getExStats() {
             ex.b += parseFloat(cb.getAttribute('data-aspd') || 0);
         }
     });
-    // === [新增] 5. 特定武器自帶攻速加成 ===
+
+    // 5. 特定武器自帶攻速加成
     const currentMode = document.getElementById('mode').value;
     if (currentMode === 'pistol_special') {
-        ex.b += 4; // 如果選了紅翼手槍，系統自動在背景幫你填入 4%
+        ex.b += 4;
     }
 
-    return ex;
     return ex;
 }
 
@@ -268,37 +287,34 @@ function calculate() {
     const d = parseVal(document.getElementById('dex').value);
     const l = parseVal(document.getElementById('luk').value);
     
+    // UI 提示更新
+    document.getElementById('pistol_hint').style.display = (mode === 'pistol_special') ? 'block' : 'none';
+
     const totA = a.b + a.s + ex.a;
     const totD = d.b + d.s + ex.d;
     const totL = l.b + l.s + ex.l;
     const totB = ex.b / 100;
 
-    // === 新增：動態判斷武器的 B (基礎頻率) 與 D (武器係數) ===
-    let B_val, D_val;
-    switch (mode) {
-        case 'pistol_normal':  B_val = 1.10025; D_val = 67.22;      break; // 一般手槍
-        case 'pistol_special': B_val = 1.1007;  D_val = 66.55;      break; // 你那把特殊手槍
-        case 'gatling':        B_val = 1.08075; D_val = 80 / 1.17;  break;
-        case 'shotgun':        B_val = 1.02225; D_val = 80 / 1.11;  break;
-        case 'rifle':          B_val = 1.06150; D_val = 80 / 1.14;  break;
-        case 'unarmed':        B_val = 1.1904;  D_val = 63;         break;
-        default:               B_val = 1.1109;  D_val = 67.5;       break;
-    }
+    // 直接查字典拿武器常數
+    const currentWeapon = weaponDictionary[mode] || weaponDictionary['weapon'];
+    const B_val = currentWeapon.B;
+    const D_val = currentWeapon.D;
 
     // 計算最終頻率
     let f = (B_val + (totA + totD / 4) / D_val) / (1 - totB);
 
-    // 針對槍手吃攻速 Buff 的隱藏補正 (當有攻速加成且非弓箭、非空手時)
+    // 針對非弓類武器吃攻速 Buff 的隱藏補正
     if (mode !== 'weapon' && mode !== 'unarmed' && totB > 0) {
-        f += 0.015; // 補回遊戲偷偷給槍手的那一點頻率優勢
+        f += 0.015;
     }
 
     const finalF = Math.floor(Math.round(f * 1000) / 10) / 100;
+    
     // 獵鷹出擊率
     const stunt = document.getElementById('keen_falcon_cb').checked ? 
-        {purple:{"1":14,"2":17,"3":20}, orange:{"1":22,"2":26,"3":30}}[document.getElementById('stunt_color').value][document.getElementById('stunt_lv').value] : 0;
+        {purple:{"1":20,"2":24,"3":28}, orange:{"1":32,"2":36,"3":40}, red:{"1":38,"2":46,"3":50}}[document.getElementById('stunt_color').value][document.getElementById('stunt_lv').value] : 0;
     const lukProc = Math.min(totL / 3, 45);
-    const totalBird = Math.min(5 + lukProc + stunt, 80);
+    const totalBird = Math.min(5 + lukProc + stunt);
 
     // 分析建議邏輯 (反向推導秒7所需AGI)
     const rA = Math.ceil(D_val * (7.0 * (1 - totB) - B_val) - (totD / 4));
@@ -321,31 +337,27 @@ function optimizePoints() {
     const mode = document.getElementById('mode').value;
     const pool_limit = parseInt(document.getElementById('status_pool').value) || 0;
     
-    // 在優化器中的快照也要套用新的武器係數
+    // 在優化器中的快照直接調用全域字典，確保常數 100% 一致
     const getSnapshot = (baseA, baseD, baseL) => {
         const tA = baseA + parseVal(document.getElementById('agi').value).s + ex.a;
         const tD = baseD + parseVal(document.getElementById('dex').value).s + ex.d;
         const tL = baseL + parseVal(document.getElementById('luk').value).s + ex.l;
         const tB = ex.b / 100;
         
-        let B_const, D_const;
-        switch (mode) {
-            case 'pistol':  B_const = 1.10025; D_const = 80 / 1.19; break;
-            case 'gatling': B_const = 1.08075; D_const = 80 / 1.17; break;
-            case 'shotgun': B_const = 1.02225; D_const = 80 / 1.11; break;
-            case 'rifle':   B_const = 1.06150; D_const = 80 / 1.14; break;
-            case 'unarmed': B_const = 1.1904;  D_const = 63;        break;
-            default:        B_const = 1.1109;  D_const = 67.5;      break;
-        }
+        const currentWeapon = weaponDictionary[mode] || weaponDictionary['weapon'];
+        let f = (currentWeapon.B + (tA + tD / 4) / currentWeapon.D) / (1 - tB);
         
-        const f = (B_const + (tA + tD / 4) / D_const) / (1 - tB);
+        if (mode !== 'weapon' && mode !== 'unarmed' && tB > 0) {
+            f += 0.015;
+        }
+
         return { freq: Math.floor(Math.round(f * 1000) / 10) / 100, luk: tL };
     };
 
     let bA = 1, bD = 1, bL = 1;
     let currentPool = pool_limit;
 
-    // === 新增：依據武器類型決定配點優先級 ===
+    // 依據武器類型決定配點優先級
     if (mode === 'weapon') {
         // 弓箭(預設)：1. 優先滿足 LUK 135 -> 2. 達成秒 7 攻速
         while (getSnapshot(bA, bD, bL).luk < 135 && bL < 99) {
@@ -397,7 +409,9 @@ function optimizePoints() {
     calculate();
     document.getElementById('detail_info').innerHTML += ` | <span style="color:#2e7d32">剩餘點數: ${currentPool}</span>`;
 }
-    calculate();
+
+// 頁面載入時初始化
+calculate();
 </script>
 </body>
 </html>
